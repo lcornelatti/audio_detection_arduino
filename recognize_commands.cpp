@@ -104,7 +104,7 @@ TfLiteStatus RecognizeCommands::ProcessLatestResults(
   }
   for (int i = 0; i < kCategoryCount; ++i) {
     average_scores[i] /= how_many_results;
-    TF_LITE_REPORT_ERROR(error_reporter, "Class %d, avg score %d", i, average_scores[i]);
+    TF_LITE_REPORT_ERROR(error_reporter_, "Class %d, avg score %d", i, average_scores[i]);
   }
 
   // Find the current highest scoring category.
