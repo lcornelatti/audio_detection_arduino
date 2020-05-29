@@ -141,9 +141,10 @@ void setup() {
 
 // The name of this function is important for Arduino compatibility.
 void loop() {
-  TF_LITE_REPORT_ERROR(error_reporter, "Looping");
+  //TF_LITE_REPORT_ERROR(error_reporter, "Looping");
   // Fetch the spectrogram for the current time.
   const int32_t current_time = LatestAudioTimestamp();
+  TF_LITE_REPORT_ERROR(error_reporter, "Looping at %d", current_time);
   int how_many_new_slices = 0;
   TfLiteStatus feature_status = feature_provider->PopulateFeatureData(
       error_reporter, previous_time, current_time, &how_many_new_slices);
@@ -155,21 +156,24 @@ void loop() {
   // If no new audio samples have been received since last time, don't bother
   // running the network model.
   if (how_many_new_slices == 0) {
+    TF_LITE_REPORT_ERROR(error_reporter, "No new slices, quitting.");
     return;
   }
+  //TF_LITE_REPORT_ERROR(error_reporter, "Still looping");
 
   // Copy feature buffer to input tensor
   for (int i = 0; i < kFeatureElementCount; i++) {
     model_input_buffer[i] = feature_buffer[i];
   }
-
+  TF_LITE_REPORT_ERROR(error_reporter, "Starting inference at %d", LatestAudioTimestamp());
   // Run the model on the spectrogram input and make sure it succeeds.
   TfLiteStatus invoke_status = interpreter->Invoke();
   if (invoke_status != kTfLiteOk) {
     TF_LITE_REPORT_ERROR(error_reporter, "Invoke failed");
     return;
   }
-
+  TF_LITE_REPORT_ERROR(error_reporter, "Finished inference at %d", LatestAudioTimestamp());
+  //TF_LITE_REPORT_ERROR(error_reporter, "Invoked. Gonna process now");
   // Obtain a pointer to the output tensor
   TfLiteTensor* output = interpreter->output(0);
   // Determine whether a command was recognized based on the output of inference
@@ -188,4 +192,6 @@ void loop() {
   // own function for a real application.
   RespondToCommand(error_reporter, current_time, found_command, score,
                    is_new_command);
+
+  //TF_LITE_REPORT_ERROR(error_reporter, "End of loop.");
 }

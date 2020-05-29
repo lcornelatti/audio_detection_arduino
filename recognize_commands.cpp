@@ -35,6 +35,8 @@ RecognizeCommands::RecognizeCommands(tflite::ErrorReporter* error_reporter,
 TfLiteStatus RecognizeCommands::ProcessLatestResults(
     const TfLiteTensor* latest_results, const int32_t current_time_ms,
     const char** found_command, uint8_t* score, bool* is_new_command) {
+      
+  //TF_LITE_REPORT_ERROR(error_reporter_, "PR: Processing results");
   if ((latest_results->dims->size != 2) ||
       (latest_results->dims->data[0] != 1) ||
       (latest_results->dims->data[1] != kCategoryCount)) {
@@ -46,7 +48,7 @@ TfLiteStatus RecognizeCommands::ProcessLatestResults(
         latest_results->dims->size);
     return kTfLiteError;
   }
-
+  //TF_LITE_REPORT_ERROR(error_reporter_, "PR: Dimensions OK");
   if (latest_results->type != kTfLiteInt8) {
     TF_LITE_REPORT_ERROR(
         error_reporter_,
@@ -54,7 +56,7 @@ TfLiteStatus RecognizeCommands::ProcessLatestResults(
         latest_results->type);
     return kTfLiteError;
   }
-
+  //TF_LITE_REPORT_ERROR(error_reporter_, "PR: Result type ok");
   if ((!previous_results_.empty()) &&
       (current_time_ms < previous_results_.front().time_)) {
     TF_LITE_REPORT_ERROR(
@@ -64,30 +66,35 @@ TfLiteStatus RecognizeCommands::ProcessLatestResults(
         current_time_ms, previous_results_.front().time_);
     return kTfLiteError;
   }
-
+  //TF_LITE_REPORT_ERROR(error_reporter_, "PR: Time order ok");
   // Add the latest results to the head of the queue.
   previous_results_.push_back({current_time_ms, latest_results->data.int8});
 
-  // Prune any earlier results that are too old for the averaging window.
-  const int64_t time_limit = current_time_ms - average_window_duration_ms_;
-  while ((!previous_results_.empty()) &&
-         previous_results_.front().time_ < time_limit) {
-    previous_results_.pop_front();
-  }
-
+ // Prune any earlier results that are too old for the averaging window.
+ const int64_t time_limit = current_time_ms - average_window_duration_ms_;
+ while ((!previous_results_.empty()) &&
+        previous_results_.front().time_ < time_limit) {
+   int64_t ms_ago = (current_time_ms - previous_results_.front().time_);       
+   TF_LITE_REPORT_ERROR(error_reporter_, "Discarding old result (%d ms ago)", ms_ago);
+   previous_results_.pop_front();
+ }
+ //TF_LITE_REPORT_ERROR(error_reporter_, "PR: Pruned ok");
   // If there are too few results, assume the result will be unreliable and
   // bail.
   const int64_t how_many_results = previous_results_.size();
   const int64_t earliest_time = previous_results_.front().time_;
   const int64_t samples_duration = current_time_ms - earliest_time;
+
+  TF_LITE_REPORT_ERROR(error_reporter_, "PR: We have %d previous results that last %d",how_many_results, samples_duration);
   if ((how_many_results < minimum_count_) ||
       (samples_duration < (average_window_duration_ms_ / 4))) {
     *found_command = previous_top_label_;
     *score = 0;
     *is_new_command = false;
+    TF_LITE_REPORT_ERROR(error_reporter_, "PR: Too few results, bailing");
     return kTfLiteOk;
   }
-
+  TF_LITE_REPORT_ERROR(error_reporter_, "Calculating average scores across window");
   // Calculate the average score across all the results in the window.
   int32_t average_scores[kCategoryCount];
   for (int offset = 0; offset < previous_results_.size(); ++offset) {
@@ -117,6 +124,8 @@ TfLiteStatus RecognizeCommands::ProcessLatestResults(
     }
   }
   const char* current_top_label = kCategoryLabels[current_top_index];
+
+  TF_LITE_REPORT_ERROR(error_reporter_, "Top score is %d for label %s", current_top_score, current_top_label);
 
   // If we've recently had another label trigger, assume one that occurs too
   // soon afterwards is a bad result.
