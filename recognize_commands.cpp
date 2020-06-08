@@ -71,7 +71,7 @@ TfLiteStatus RecognizeCommands::ProcessLatestResults(
   previous_results_.push_back({current_time_ms, latest_results->data.int8});
 
  // Prune any earlier results that are too old for the averaging window.
- const int64_t time_limit = current_time_ms - average_window_duration_ms_;
+ const int64_t time_limit = current_time_ms - 10 * average_window_duration_ms_;
  while ((!previous_results_.empty()) &&
         previous_results_.front().time_ < time_limit) {
    int64_t ms_ago = (current_time_ms - previous_results_.front().time_);       
